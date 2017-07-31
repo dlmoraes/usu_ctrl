@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+
+{% block titulo %}
+    <span class="text-semibold">Usuários</span>
+{% endblock %}
+
+{% block breadcrumb %}
+    {{ block.super }}
+    <li>Usuários</li>
+    <li class="active">Geral</li>
+{% endblock %}
+
+{% block container %}
+    <div class="panel panel-flat">
+        <div class="panel-heading">
+            <h5 class="panel-title">{{ titulo|safe }}
+            </h5>
+            <div class="heading-elements">
+                <ul class="icons-list">
+                    <li><a data-action="collapse"></a></li>
+                    <li><a data-action="reload"></a></li>
+                    <li><a data-action="close"></a></li>
+                </ul>
+            </div>
+        </div>
+        <table class="table datatable">
+            <thead>
+            <tr>
+                <th>Cod.</th>
+                <th>Login</th>
+                <th>Nome</th>
+                <th>Canal</th>
+                <th>Regional</th>
+                <th class="text-center">Ações</th>
+            </tr>
+            </thead>
+        </table>
+    </div>
+
+{% endblock %}
+
+{% block jscode %}
+
+    <script>
+        $(document).ready(function () {
+            $.extend($.fn.dataTable.defaults, {
+                autoWidth: false,
+                columnDefs: [{
+                    orderable: false,
+                    width: '100px',
+                    targets: [5]
+                }],
+                dom: '<"datatable-header"fl><"datatable-scroll"t><"datatable-footer"ip>',
+                language: {
+                    search: '<span>Filtro:</span> _INPUT_',
+                    lengthMenu: '<span>Mostrar:</span> _MENU_',
+                    paginate: {'first': 'Primeiro', 'last': 'Último', 'next': '&rarr;', 'previous': '&larr;'},
+                    sInfo: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                    sInfoEmpty: "Showing 0 to 0 of 0 entries"
+                },
+                drawCallback: function () {
+                    $(this).find('tbody tr').slice(-3).find('.dropdown, .btn-group').addClass('dropup');
+                },
+                preDrawCallback: function () {
+                    $(this).find('tbody tr').slice(-3).find('.dropdown, .btn-group').removeClass('dropup');
+                }
+            });
+
+
+            carregarDataTable();
+
+            $('.datatable tbody').on('select2:select', 'tr select', function (evt) {
+                var id = '#' + $(this).attr('id')
+                var valor = $(id).val()
+                $(id).select2({
+                    containerCssClass: 'bg-teal-800'
+                })
+            });
+
+        });
+
+        var carregarDataTable = function () {
+            $('.datatable').dataTable({
+                destroy: true,
+                ajax: {
+                    url: "{% url 'cad:nao_map_usu_json' %}",
+                    complete: function () {
+                        carregarCanais();
+                        carregarRegionais();
+                        $('[data-toggle="tooltip"]').tooltip();
+                        $('.dataTables_length select').select2({
+                            minimumResultsForSearch: Infinity,
+                            width: 'auto'
+                        });
+                        $(".dataTables_paginate").removeClass("paging_simple_numbers").addClass('pagination pagination-flat pagination-rounded');
+                        $('.dataTables_filter input[type=search]').attr('placeholder', 'Pesquisar...');
+                    }
+                },
+                createdRow: function (row, data, dataIndex) {
+                    $(row).attr('id', data.pk);
+                },
+                columns: [
+                    {
+                        data: function (d) {
+                            return d.pk
+                        }
+                    },
+                    {data: "login"},
+                    {data: "nome"},
+                    {
+                        data: function (d) {
+                            return '<select class="select_canal" id="C' + d.pk + '" style="width: 100%"><option></option></select>'
+                        }
+                    },
+                    {
+                        data: function (d) {
+                            return '<select class="select_regional" id="R' + d.pk + '" style="width: 100%"><option></option></select>'
+                        }
+                    },
+                    {
+                        data: function (d) {
+                            return '<button id="btn' + d.pk + '" onclick="submitForm(this.id);" data-toggle="tooltip" title="Salvar" type="button" class="label bg-teal-800 label-rounded label-icon"><i class="icon-floppy-disk"></i></button>';
+                        }
+                    }
+                ]
+            });
+
+        };
+
+        function submitForm(id) {
+            var linha = id.replace('btn', '')
+            var cId = '#C' + linha
+            var rId = '#R' + linha
+            var row = '#' + linha
+            var canal = $(cId).val()
+            var regional = $(rId).val()
+            var url = "/atl_negociador/" + linha + "/"
+            var frm = {
+                "canal": canal,
+                "regional": regional,
+                "csrfmiddlewaretoken": '{{ csrf_token }}'
+            }
+            swal({
+                    title: "Confirmação de Mapeamento de Usuário",
+                    text: "Você tem certeza que deseja gravar as alterações feitas?",
+                    type: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#EF5350",
+                    confirmButtonText: "Sim, tenho certeza!",
+                    cancelButtonText: "Não, cliquei sem querer!",
+                    closeOnConfirm: false,
+                    closeOnCancel: false
+                },
+                function (isConfirm) {
+                    if (isConfirm) {
+                        $.ajax({
+                            url: url,
+                            type: 'POST',
+                            async: false,
+                            dataType: "json",
+                            data: frm,
+                            beforeSend: function () {
+                                iniciarCarregamento();
+                            },
+                            success: function (data) {
+                                msgNotificacao("success", "Alterações salvas!", "As alterações foram salvas com sucesso.");
+                            },
+                            complete: function () {
+                                fecharCarregamento();
+                                carregarDataTable()
+                            },
+                            error: function (err) {
+                                msgNotificacao("error", "Oops...", "Ocorreu um erro ao salvar as alterações.");
+                            }
+                        })
+                    } else {
+                        msgNotificacao("error", "Cancelado", "Calma, você não alterou nada! =)");
+                    }
+                });
+        }
+
+        function normalizacaoSelect2(dados) {
+            var d = $.map(dados, function (obj) {
+                obj.id = obj.pk;
+                obj.text = obj.nome || obj.login;
+                return obj;
+            })
+            return d;
+        }
+
+        function carregarCanais() {
+            $.ajax({
+                url: "{% url 'cad:canal_json' %}",
+                method: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    canais = data.canais;
+                    var dados = normalizacaoSelect2(canais);
+                    $('.select_canal').select2({
+                        data: dados,
+                        containerCssClass: 'bg-orange-800',
+                        placeholder: 'Canal...'
+                    })
+                },
+                error: function (err) {
+                    console.log('error', err)
+                }
+            })
+
+        }
+
+        function carregarRegionais() {
+            $.ajax({
+                url: "{% url 'cad:regional_json' %}",
+                method: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    regionais = data.regionais;
+                    var dados = normalizacaoSelect2(regionais);
+                    $('.select_regional').select2({
+                        data: dados,
+                        containerCssClass: 'bg-orange-800',
+                        minimumResultsForSearch: -1,
+                        placeholder: 'Regional...'
+                    })
+
+                },
+                error: function (err) {
+                    console.log('error', err)
+                }
+            })
+        }
+
+    </script>
+
+{% endblock %}

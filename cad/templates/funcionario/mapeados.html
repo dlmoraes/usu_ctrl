@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block titulo %}
+    <span class="text-semibold">Usuários</span>
+{% endblock %}
+
+{% block breadcrumb %}
+    {{ block.super }}
+    <li>Usuários</li>
+    <li class="active">Geral</li>
+{% endblock %}
+
+{% block container %}
+    <div class="panel panel-flat">
+        <div class="panel-heading">
+            <h5 class="panel-title">{{ titulo|safe }}
+            </h5>
+            <div class="heading-elements">
+                <ul class="icons-list">
+                    <li><a data-action="collapse"></a></li>
+                    <li><a data-action="reload"></a></li>
+                    <li><a data-action="close"></a></li>
+                </ul>
+            </div>
+        </div>
+        <table class="table datatable">
+            <thead>
+            <tr>
+                <th>Cod.</th>
+                <th>Login</th>
+                <th>Nome</th>
+                <th>Canal</th>
+                <th>Regional</th>
+                <th>Ações</th>
+            </tr>
+            </thead>
+        </table>
+    </div>
+
+{% endblock %}
+
+{% block jscode %}
+
+    <script>
+        $(document).ready(function () {
+            $.extend($.fn.dataTable.defaults, {
+                autoWidth: false,
+                columnDefs: [{
+                    orderable: false,
+                    width: '100px',
+                    targets: [4]
+                }],
+                dom: '<"datatable-header"fl><"datatable-scroll"t><"datatable-footer"ip>',
+                language: {
+                    search: '<span>Filtro:</span> _INPUT_',
+                    lengthMenu: '<span>Mostrar:</span> _MENU_',
+                    paginate: {'first': 'Primeiro', 'last': 'Último', 'next': '&rarr;', 'previous': '&larr;'},
+                    sInfo: "Mostrando _START_ a _END_ de _TOTAL_ registros",
+                    sInfoEmpty: "Showing 0 to 0 of 0 entries"
+                },
+                drawCallback: function () {
+                    $(this).find('tbody tr').slice(-3).find('.dropdown, .btn-group').addClass('dropup');
+                },
+                preDrawCallback: function () {
+                    $(this).find('tbody tr').slice(-3).find('.dropdown, .btn-group').removeClass('dropup');
+                }
+            });
+
+
+            carregarDataTable();
+
+        });
+
+        var carregarDataTable = function () {
+            $('.datatable').dataTable({
+                destroy: true,
+                ajax: {
+                    url: "{% url 'cad:map_usu_json' %}",
+                    complete: function () {
+                        $('[data-toggle="tooltip"]').tooltip();
+                        $('.dataTables_length select').select2({
+                            minimumResultsForSearch: Infinity,
+                            width: 'auto'
+                        });
+                        $(".dataTables_paginate").removeClass("paging_simple_numbers").addClass('pagination pagination-flat pagination-rounded');
+                        $('.dataTables_filter input[type=search]').attr('placeholder', 'Pesquisar...');
+                        fecharCarregamento();
+                    }
+                },
+                createdRow: function (row, data, dataIndex) {
+                    $(row).attr('id', data.pk);
+                },
+                columns: [
+                    {data: "pk"},
+                    {data: "login"},
+                    {data: "nome"},
+                    {
+                        data: function (d) {
+                            return '<span class="label label-primary label-rounded">' + d.canal + '</span>'
+                        }
+                    },
+                    {
+                        data: function (d) {
+                            return '<span class="label label-info label-rounded">' + d.regional + '</span>'
+                        }
+                    },
+                    {
+                        data: function (d) {
+                            return '<button id="btn' + d.pk + '" onclick="submitForm(this.id);" data-toggle="tooltip" title="Remover Mapeamento" type="button" class="label label-warning label-rounded label-icon"><i class="icon-unlink"></i></button>';
+                        }
+                    }
+
+                ]
+            });
+
+        };
+
+        function submitForm(id) {
+            var linha = id.replace('btn', '')
+            var row = '#' + linha
+            var url = "/atl_negociador/" + linha + "/"
+            var frm = {
+                "canal": null,
+                "regional": null,
+                "csrfmiddlewaretoken": '{{ csrf_token }}'
+            }
+            swal({
+
+                    title: "Desvincular Mapeamento",
+                    text: "Você tem certeza que deseja remover este mapeamento?",
+                    type: "warning",
+                    showCancelButton: true,
+                    confirmButtonColor: "#EF5350",
+                    confirmButtonText: "Sim, tenho certeza!",
+                    cancelButtonText: "Não, cliquei sem querer!",
+                    closeOnConfirm: false,
+                    closeOnCancel: false
+                },
+                function (isConfirm) {
+                    if (isConfirm) {
+                        $.ajax({
+                            url: url,
+                            type: 'POST',
+                            async: false,
+                            dataType: "json",
+                            data: frm,
+                            beforeSend: function () {
+                                iniciarCarregamento();
+                            },
+                            success: function (data) {
+                                msgNotificacao("success", "Alterações salvas!", 'As alterações foram salvas com sucesso, vá para página de Não Mapeados, para "re-mapear" esté usuário.');
+                            },
+                            complete: function () {
+                                fecharCarregamento();
+                                carregarDataTable()
+                            },
+                            error: function (err) {
+                                msgNotificacao("error", "Oops...", "Ocorreu um erro ao salvar as alterações.");
+                            }
+                        })
+                    } else {
+                        msgNotificacao("error", "Cancelado", "Calma, você não alterou nada! =)");
+                    }
+                });
+        }
+
+    </script>
+
+{% endblock %}

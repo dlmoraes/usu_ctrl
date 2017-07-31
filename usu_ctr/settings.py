@@ -25,7 +25,7 @@ SECRET_KEY = 'd%rqbwkki*z&utjten1!xf0!xlq1k7oyq+rb-($p)z0(dwpk)2'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -37,9 +37,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    # 'rest_framework',
+    'rest_framework',
 
+    'core',
     'cad',
+    'contas',
 ]
 
 MIDDLEWARE = [
@@ -52,13 +54,13 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-#REST_FRAMEWORK = {
+REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
-#    'DEFAULT_PERMISSION_CLASSES': [
-#        'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
-#    ]
-#}
+   'DEFAULT_PERMISSION_CLASSES': [
+       'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly'
+   ]
+}
 
 ROOT_URLCONF = 'usu_ctr.urls'
 
@@ -138,3 +140,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.11/howto/static-files/
 
 STATIC_URL = '/static/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'usu_ctr', 'media')
+MEDIA_URL = '/media/'
+
+
+# Auth
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_URL = 'logout'
